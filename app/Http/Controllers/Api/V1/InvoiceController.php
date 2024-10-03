@@ -2,10 +2,13 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Models\Invoice;
+use Illuminate\Support\Arr;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreInvoiceRequest;
+use App\Filters\V1\InvoiceFilter;
+use App\Http\Requests\V1\StoreInvoiceRequest;
+use App\Http\Requests\V1\BulkStoreInvoiceRequest;
 use App\Http\Resources\V1\InvoiceResource;
-use App\Http\Requests\UpdateInvoiceRequest;
+use App\Http\Requests\V1\UpdateInvoiceRequest;
 use App\Http\Resources\V1\InvoiceCollection;
 
 class InvoiceController extends Controller
@@ -17,18 +20,17 @@ class InvoiceController extends Controller
      */
     public function index()
     {
-        return new InvoiceCollection(Invoice::paginate());
+        $filter = new InvoiceFilter();
+        $queryItems = $filter->transform($request);
+       
+        if(count($queryItems) == 0){
+            return new InvoiceCollection(Invoice::paginate());
+        }else{
+            $invoices = Invoice::where($queryItems)->paginate();
+            return new InvoiceCollection($invoices->appends($request->query()));
+        }
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
 
     /**
      * Store a newly created resource in storage.
@@ -38,9 +40,20 @@ class InvoiceController extends Controller
      */
     public function store(StoreInvoiceRequest $request)
     {
-        //
+        $data = $request->all();
+        return new InvoiceResource(Invoice::create($data));
     }
 
+    public function bulkStore(BulkStoreInvoiceRequest $request)
+    {
+        $bulk = collect($request->all())->map(function($arr, $key)
+        {
+            return Arr::except($arr, ['customerId','billedDate', 'paidDate']);
+        });
+        Invoice::insert($bulk->toArray());
+    }
+
+    
     /**
      * Display the specified resource.
      *
@@ -52,17 +65,7 @@ class InvoiceController extends Controller
         return new InvoiceResource($invoice);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Invoice  $invoice
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Invoice $invoice)
-    {
-        //
-    }
-
+   
     /**
      * Update the specified resource in storage.
      *
@@ -72,7 +75,7 @@ class InvoiceController extends Controller
      */
     public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
-        //
+        $invoice->update($request->all());
     }
 
     /**
@@ -83,6 +86,6 @@ class InvoiceController extends Controller
      */
     public function destroy(Invoice $invoice)
     {
-        //
+        $invoice->delete();
     }
 }

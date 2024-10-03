@@ -9,6 +9,14 @@ class Invoice extends Model
 {
     use HasFactory;
 
+    protected $fillable = [
+        'customer_id',
+        'amount',
+        'status',
+        'billed_date',
+        'paid_date',
+    ];
+
     public function customer()
     {
         return $this->belongTo(Customer::class);
